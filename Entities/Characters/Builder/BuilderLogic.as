@@ -1,4 +1,5 @@
 // Builder logic
+// axe added 9-4-2018 ~r
 
 #include "Hitters.as";
 #include "Knocked.as";
@@ -15,6 +16,160 @@
 //can't be <2 - needs one frame less for gathering infos
 const s32 hit_frame = 2;
 const f32 hit_damage = 0.5f;
+const u8 axe_time = 12; //change axestrike animation speed before messing with this, its to sync the delay after swing
+bool tilehits = false;
+
+//attacks limited to the one time per-actor before reset.
+
+void builder_actorlimit_setup(CBlob@ this)
+{
+	u16[] networkIDs;
+	this.set("LimitedActors", networkIDs);
+	this.Sync("LimitedActors", true);
+}
+
+bool builder_has_hit_actor(CBlob@ this, CBlob@ actor)
+{
+	u16[]@ networkIDs;
+	this.get("LimitedActors", @networkIDs);
+	return networkIDs.find(actor.getNetworkID()) >= 0;
+}
+
+u32 builder_hit_actor_count(CBlob@ this)
+{
+	u16[]@ networkIDs;
+	this.get("LimitedActors", @networkIDs);
+	return networkIDs.length;
+}
+
+void builder_add_actor_limit(CBlob@ this, CBlob@ actor)
+{
+	this.push("LimitedActors", actor.getNetworkID());
+	this.Sync("LimitedActors", true);
+}
+
+void builder_clear_actor_limits(CBlob@ this)
+{
+	this.clear("LimitedActors");
+	this.Sync("LimitedActors", true);
+}
+
+void Axe(CBlob@ this, f32 damage, u8 type) //axe for mass wood destruction/harvesting
+{
+    if (!getNet().isServer()) {
+        return;
+    }
+    f32 aimangle = 180;//(this.isFacingLeft() ? 180 : 0 );
+    Vec2f blobPos = this.getPosition();
+    Vec2f pos;
+    if (this.isFacingLeft())
+    {
+    	pos = blobPos - Vec2f(4,0).RotateBy(aimangle);
+    } 
+    else
+    {
+    	pos = blobPos - Vec2f(-4,0).RotateBy(aimangle);
+    }
+    f32 attack_distance = 19.0f;
+    f32 radius = this.getRadius();
+    CMap@ map = this.getMap();
+    // this gathers HitInfo objects which contain blob or tile hit information
+    HitInfo@[] hitInfos;
+    f32 exact_aimangle = (this.getAimPos() - blobPos).Angle();
+    Vec2f vel = this.getVelocity();
+    Vec2f slash_direction;
+    Vec2f aiming_direction = vel;
+	aiming_direction.x *= 2;
+	aiming_direction.Normalize();
+	slash_direction = aiming_direction;
+    Vec2f slash_vel =  slash_direction * this.getMass() * 0.4f;
+	//this.AddForce(slash_vel);
+
+	bool dontHitMore = false;
+	bool dontHitMoreMap = this.get_bool("dontHitMoreMap");
+	if (map.getHitInfosFromArc( pos , -exact_aimangle, 70.0f, radius + attack_distance + aiming_direction.Normalize(), this, @hitInfos) )
+    {
+		//HitInfo objects are sorted, first come closest hits
+        for (uint i = 0; i < hitInfos.length; i++)
+        {
+			HitInfo@ hi = hitInfos[i];
+			bool wood = map.isTileWood(hi.tile);
+			CBlob@ b = hi.blob;
+
+            if (b !is null && !dontHitMore) // hit blobs, not tiles
+			{
+				const bool large = b.hasTag("blocks sword") && !b.isAttached() && b.isCollidable();
+				if (b.getTeamNum() == this.getTeamNum() && !b.hasTag("dead")) { // no TK
+					continue;
+				}
+
+				if (b.hasTag("stone")) { // can't break stone doors
+					break;
+				}
+				if (builder_has_hit_actor(this, b))
+				{
+					continue;
+				}
+				if (large)
+				{
+					dontHitMore = true;
+				}
+
+				builder_add_actor_limit(this, b);
+				
+				Vec2f velocity = b.getPosition() - pos;
+				this.server_Hit( b, hi.hitpos, velocity, damage, type, true); // server_Hit() is server-side only
+				if (b.getName() == "log")
+				{
+					CBlob@ ore = server_CreateBlobNoInit("mat_wood");
+					if (ore !is null)
+					{
+						ore.Tag('custom quantity');
+						ore.Init();
+						ore.setPosition(pos);
+						ore.server_SetQuantity(12);
+					}
+				}
+
+			}
+			else if (wood && !dontHitMoreMap) //only hit tilemap if it's wooden
+			{
+				Vec2f tpos = map.getTileWorldPosition(hi.tileOffset) + Vec2f(4, 4);
+				Vec2f offset = (tpos - blobPos);
+				f32 tileangle = offset.Angle();
+				f32 dif = Maths::Abs(exact_aimangle - tileangle);
+				if (dif > 180)
+					dif -= 360;
+				if (dif < -180)
+					dif += 360;
+
+				dif = Maths::Abs(dif);
+
+				if (dif < 40.0f)
+				{
+					//detect corner
+
+					int check_x = -(offset.x > 0 ? -1 : 1);
+					int check_y = -(offset.y > 0 ? -1 : 1);
+					if (map.isTileSolid(hi.hitpos - Vec2f(map.tilesize * check_x, 0)) &&
+					        map.isTileSolid(hi.hitpos - Vec2f(0, map.tilesize * check_y)))
+						continue;
+
+					bool canhit = true; //default true if not no build zone
+
+					//dont dig through no build zones
+					canhit = canhit && map.getSectorAtPosition(tpos, "no build") is null;
+					
+					if (canhit && tilehits)
+					{
+						//map.server_DestroyTile(hi.hitpos, 0.1f, this);
+						map.server_DestroyTile(hi.hitpos, 0.1f, this); //bad code :shrug:
+					}
+				}
+			}
+		}
+	}
+}
 
 void onInit(CBlob@ this)
 {
@@ -23,11 +178,19 @@ void onInit(CBlob@ this)
 
 	this.Tag("player");
 	this.Tag("flesh");
+	this.set_string("tool", "pickaxe"); //set default tool on spawn
+	this.set_u8("axetimer", 0);
+	this.set_u8("tprop",0); //attack state timer
+	this.set_bool("swinging", false);
+	this.set_bool("true_hit", false);
+	this.set_bool("dontHitMoreMap", false);
 
 	HitData hitdata;
 	this.set("hitdata", hitdata);
+	builder_actorlimit_setup(this);
 
 	this.addCommandID("pickaxe");
+	this.addCommandID("axe");
 
 	CShape@ shape = this.getShape();
 	shape.SetRotationsAllowed(false);
@@ -54,30 +217,159 @@ void onTick(CBlob@ this)
 	if(this.isInInventory())
 		return;
 
+	AttachmentPoint@ hands = this.getAttachments().getAttachmentPointByName("PICKUP");
+	if(hands is null) return;
+	CBlob@ held = hands.getOccupied();
+
 	const bool ismyplayer = this.isMyPlayer();
+	const string tool = this.get_string("tool");
+	u8 axetimer = this.get_u8("axetimer");
+	u8 dummytimer = this.get_u8("dummytimer"); //after swing delay
+	bool swinging = this.get_bool("swinging");
 
 	if(ismyplayer && getHUD().hasMenus())
 	{
+		if(swinging) //kill state
+		{
+			swinging = false;
+			this.set_bool("swinging", swinging);
+		}
 		return;
 	}
 
-	// activate/throw
-	if(ismyplayer)
+	// actions
+	//TODO: make handy tool function instead of having it all onTick
+	if(isKnocked(this))
 	{
-		Pickaxe(this);
-
-		if(this.isKeyJustPressed(key_action3))
+		this.set_u8("dummytimer", axe_time);
+		this.set_bool("dontHitMoreMap", false);
+		this.Sync("dontHitMoreMap", true);
+	}
+	if(tool == "pickaxe")
+	{
+		if(ismyplayer)
 		{
-			CBlob@ carried = this.getCarriedBlob();
-			if(carried is null || !carried.hasTag("temp blob"))
+			Pickaxe(this);
+		}
+	}
+	else if (tool == "axe") //sorry
+	{
+		bool busy;
+		if( held !is null && ((held.getName() == "drill") || (held.getName() == "boulder")))
+		{	
+			busy = true;
+			if(swinging)
 			{
-				client_SendThrowOrActivateCommand(this);
+				swinging = false;
+				this.set_bool("swinging", swinging);
 			}
+			if (this.isKeyJustPressed(key_action2))
+			{
+				Sound::Play("NoAmmo.ogg");
+			}	
+			//return; //no bullying >:^(
+		}
+		else
+		{
+			busy = false;
+		}
+
+		if (this.isKeyPressed(key_action2) && !this.hasTag("axehit") /*dummytimer == axe_time*/ && !busy)//hold to charge
+		{
+			this.set_bool("swinging", true);
+			this.Sync("swinging", true);
+		}
+
+		if (swinging) //fake state for swinging
+		{
+			axetimer++;
+			this.set_u8("axetimer", axetimer);
+		}
+		else
+		{
+			axetimer = 0;
+			this.set_u8("axetimer", axetimer);
+		}
+
+		if(axetimer >= 15 && this.isKeyJustReleased(key_action2))//release to swing
+		{
+			this.Tag("axehit");
+			this.Sync("axehit", true);
+			swinging = false;
+			this.set_bool("swinging", swinging);
+			this.getSprite().PlayRandomSound("SwordSlash", 3.0f);
+			this.set_u8("dummytimer", 0);
+		}
+		else if(axetimer <= 15 && this.isKeyJustReleased(key_action2))//released too soon, reset without hitting
+		{
+			swinging = false;
+			this.set_bool("swinging", swinging);
+		}
+		else if(axetimer >= 55)
+		{
+			SetKnocked(this, 30, true);
+			this.getSprite().PlaySound("/Stun", 2.0f, this.getSexNum() == 0 ? 1.0f : 1.5f);
+		}
+
+		if (this.hasTag("axehit"))//fake slashing state
+		{
+			int t = this.get_u8("tprop");
+			if(!isKnocked(this))
+			{
+				//CBitStream params;
+				t++;
+				this.set_u8("tprop",t);
+				if(t > axe_time)
+				{
+					this.set_u8("tprop",0);
+					this.Untag("axehit");
+					this.Sync("axehit", true);
+					builder_clear_actor_limits(this);
+					this.set_bool("dontHitMoreMap", false);
+					this.Sync("dontHitMoreMap", true);
+				}
+				else if(t < 6) //hit over multiple ticks 
+				{
+					//this.SendCommand(this.getCommandID("axe"), params);
+					Axe(this, 1.0f, Hitters::builderaxe);
+					if(t > 2)
+					{
+						tilehits = false;
+					}
+					else
+					{
+						tilehits = true;
+					}
+				}
+				else if(t == 2)
+				{
+					this.set_bool("dontHitMoreMap", true);
+					this.Sync("dontHitMoreMap", true);
+				}
+				
+			}
+			else
+			{
+				this.Untag("axehit");
+				this.Sync("axehit", true);
+				builder_clear_actor_limits(this);
+				this.set_bool("dontHitMoreMap", false);
+				this.Sync("dontHitMoreMap", true);
+				this.set_u8("dummytimer", axe_time);
+			}
+		}
+	}
+	if(this.isKeyJustPressed(key_action3))
+	{
+		CBlob@ carried = this.getCarriedBlob();
+		if(carried is null || !carried.hasTag("temp blob"))
+		{
+			client_SendThrowOrActivateCommand(this);
 		}
 	}
 
 	// slow down walking
-	if(this.isKeyPressed(key_action2))
+	if((this.isKeyPressed(key_action2) && (this.get_string("tool") == "pickaxe")) /*|| swinging*/)
 	{
 		RunnerMoveVars@ moveVars;
 		if(this.get("moveVars", @moveVars))
@@ -89,6 +381,7 @@ void onTick(CBlob@ this)
 
 	if(ismyplayer && this.isKeyPressed(key_action1) && !this.isKeyPressed(key_inventory)) //Don't let the builder place blocks if he/she is selecting which one to place
 	{
+		if (swinging) return;
 		BlockCursor @bc;
 		this.get("blockCursor", @bc);
 
@@ -200,6 +493,10 @@ void onCommand(CBlob@ this, u8 cmd, CBitStream @params)
 		{
 			warn("error when recieving pickaxe command");
 		}
+	}
+	else if (cmd == this.getCommandID("axe"))
+	{
+		//Axe(this, 1.0f, Hitters::builderaxe);
 	}
 }
 

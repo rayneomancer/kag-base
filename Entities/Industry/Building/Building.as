@@ -11,6 +11,9 @@ const bool builder_only = false;
 
 void onInit(CBlob@ this)
 {
+	CRules@ rules = getRules();
+	const bool CTF = rules.gamemode_name == "CTF";
+	const bool BW = rules.gamemode_name == "BW";
 	AddIconToken("$stonequarry$", "../Mods/Entities/Industry/CTFShops/Quarry/Quarry.png", Vec2f(40, 24), 4);
 	this.set_TileType("background tile", CMap::tile_wood_back);
 	//this.getSprite().getConsts().accurateLighting = true;
@@ -23,53 +26,85 @@ void onInit(CBlob@ this)
 
 	// SHOP
 	this.set_Vec2f("shop offset", Vec2f(0, 0));
-	this.set_Vec2f("shop menu size", Vec2f(4, 5));
+	if(BW) {this.set_Vec2f("shop menu size", Vec2f(4, 3));}
+	else if(CTF) {this.set_Vec2f("shop menu size", Vec2f(4, 5));}
 	this.set_string("shop description", "Construct");
 	this.set_u8("shop icon", 12);
 	this.Tag(SHOP_AUTOCLOSE);
+	
+	if (BW) //Builder wars shops
+	{
+		{
+			ShopItem@ s = addShopItem(this, "Builder Shop", "$buildershop$", "buildershop", Descriptions::buildershop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::buildershop_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Quarters", "$quarters$", "quarters", Descriptions::quarters);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::quarters_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Storage Cache", "$storage$", "storage", Descriptions::storagecache);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::storage_stone);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::storage_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Transport Tunnel", "$tunnel$", "tunnel", Descriptions::tunnel);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::tunnel_stone);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::tunnel_wood);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::tunnel_gold);
+		}
 
-	{
-		ShopItem@ s = addShopItem(this, "Builder Shop", "$buildershop$", "buildershop", Descriptions::buildershop);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::buildershop_wood);
+		{
+			ShopItem@ s = addShopItem(this, "Stone Quarry", "$stonequarry$", "quarry", Descriptions::quarry);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::quarry_stone);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::quarry_gold);
+		}
 	}
+	else
 	{
-		ShopItem@ s = addShopItem(this, "Quarters", "$quarters$", "quarters", Descriptions::quarters);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::quarters_wood);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Knight Shop", "$knightshop$", "knightshop", Descriptions::knightshop);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::knightshop_wood);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Archer Shop", "$archershop$", "archershop", Descriptions::archershop);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::archershop_wood);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Boat Shop", "$boatshop$", "boatshop", Descriptions::boatshop);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::boatshop_wood);
-		AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::boatshop_gold);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Vehicle Shop", "$vehicleshop$", "vehicleshop", Descriptions::vehicleshop);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::vehicleshop_wood);
-		AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::vehicleshop_gold);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Storage Cache", "$storage$", "storage", Descriptions::storagecache);
-		AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::storage_stone);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::storage_wood);
-	}
-	{
-		ShopItem@ s = addShopItem(this, "Transport Tunnel", "$tunnel$", "tunnel", Descriptions::tunnel);
-		AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::tunnel_stone);
-		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::tunnel_wood);
-		AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::tunnel_gold);
-	}
+		{
+			ShopItem@ s = addShopItem(this, "Builder Shop", "$buildershop$", "buildershop", Descriptions::buildershop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::buildershop_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Quarters", "$quarters$", "quarters", Descriptions::quarters);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::quarters_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Knight Shop", "$knightshop$", "knightshop", Descriptions::knightshop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::knightshop_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Archer Shop", "$archershop$", "archershop", Descriptions::archershop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::archershop_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Boat Shop", "$boatshop$", "boatshop", Descriptions::boatshop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::boatshop_wood);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::boatshop_gold);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Vehicle Shop", "$vehicleshop$", "vehicleshop", Descriptions::vehicleshop);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::vehicleshop_wood);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::vehicleshop_gold);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Storage Cache", "$storage$", "storage", Descriptions::storagecache);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::storage_stone);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::storage_wood);
+		}
+		{
+			ShopItem@ s = addShopItem(this, "Transport Tunnel", "$tunnel$", "tunnel", Descriptions::tunnel);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::tunnel_stone);
+			AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::tunnel_wood);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::tunnel_gold);
+		}
 
-	{
-		ShopItem@ s = addShopItem(this, "Stone Quarry", "$stonequarry$", "quarry", Descriptions::quarry);
-		AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::quarry_stone);
-		AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::quarry_gold);
+		{
+			ShopItem@ s = addShopItem(this, "Stone Quarry", "$stonequarry$", "quarry", Descriptions::quarry);
+			AddRequirement(s.requirements, "blob", "mat_stone", "Stone", CTFCosts::quarry_stone);
+			AddRequirement(s.requirements, "blob", "mat_gold", "Gold", CTFCosts::quarry_gold);
+		}
 	}
 }
 

@@ -148,29 +148,30 @@ void MakeBlocksMenu(CInventory@ this, const Vec2f &in INVENTORY_CE)
 			}
 		}
 
-		// index menu only available in sandbox
-		if(getRules().gamemode_name != "Sandbox") return;
-
-		const Vec2f INDEX_POS = Vec2f(menu.getLowerRightPosition().x + GRID_PADDING + GRID_SIZE, menu.getUpperLeftPosition().y + GRID_SIZE * Builder::PAGE_COUNT / 2);
-
-		CGridMenu@ index = CreateGridMenu(INDEX_POS, blob, Vec2f(2, Builder::PAGE_COUNT), "Type");
-		if(index !is null)
+		// index menu only available in sandbox and builder wars
+		if((getRules().gamemode_name == "Sandbox") || (getRules().gamemode_name == "BW") )
 		{
-			index.deleteAfterClick = false;
+			const Vec2f INDEX_POS = Vec2f(menu.getLowerRightPosition().x + GRID_PADDING + GRID_SIZE, menu.getUpperLeftPosition().y + GRID_SIZE * Builder::PAGE_COUNT / 2);
 
-			CBitStream params;
-			params.write_u16(blob.getNetworkID());
-
-			for(u8 i = 0; i < Builder::PAGE_COUNT; i++)
+			CGridMenu@ index = CreateGridMenu(INDEX_POS, blob, Vec2f(2, Builder::PAGE_COUNT), "Type");
+			if(index !is null)
 			{
-				CGridButton@ button = index.AddButton("$"+PAGE_NAME[i]+"$", PAGE_NAME[i], Builder::PAGE_SELECT + i, Vec2f(2, 1), params);
-				if(button is null) continue;
+				index.deleteAfterClick = false;
 
-				button.selectOneOnClick = true;
+				CBitStream params;
+				params.write_u16(blob.getNetworkID());
 
-				if(i == PAGE)
+				for(u8 i = 0; i < Builder::PAGE_COUNT; i++)
 				{
-					button.SetSelected(1);
+					CGridButton@ button = index.AddButton("$"+PAGE_NAME[i]+"$", PAGE_NAME[i], Builder::PAGE_SELECT + i, Vec2f(2, 1), params);
+					if(button is null) continue;
+
+					button.selectOneOnClick = true;
+
+					if(i == PAGE)
+					{
+						button.SetSelected(1);
+					}
 				}
 			}
 		}

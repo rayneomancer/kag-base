@@ -54,8 +54,8 @@ void onCollision(CBlob@ this, CBlob@ blob, bool solid)
 	}
 
 	if(!pierced) return;
-
-	this.server_Hit(blob, blob.getPosition(), blob.getVelocity() * -1, 1, Hitters::spikes, true);
+	f32 damage = (sv_gamemode == "BW") ? 2 : 1;
+	this.server_Hit(blob, blob.getPosition(), blob.getVelocity() * -1, damage, Hitters::spikes, true);
 }
 
 void onHitBlob(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitBlob, u8 customData)

@@ -10,6 +10,8 @@ void onInit(CBlob@ this)
 {
 	InitCosts(); //read from cfg
 
+	const bool BW = getRules().gamemode_name == "BW";
+
 	AddIconToken("$_buildershop_filled_bucket$", "Bucket.png", Vec2f(16, 16), 1);
 
 	this.set_TileType("background tile", CMap::tile_wood_back);
@@ -30,6 +32,11 @@ void onInit(CBlob@ this)
 	{
 		ShopItem@ s = addShopItem(this, "Lantern", "$lantern$", "lantern", Descriptions::lantern, false);
 		AddRequirement(s.requirements, "blob", "mat_wood", "Wood", CTFCosts::lantern_wood);
+	}
+	if(BW)
+	{
+		ShopItem@ s = addShopItem(this, "Arrows", "$mat_arrows$", "mat_arrows", Descriptions::arrows, true);
+		AddRequirement(s.requirements, "coin", "", "Coins", CTFCosts::arrows);
 	}
 	{
 		ShopItem@ s = addShopItem(this, "Bucket", "$bucket$", "bucket", Descriptions::bucket, false);

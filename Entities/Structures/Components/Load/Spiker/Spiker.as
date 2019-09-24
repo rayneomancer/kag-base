@@ -1,6 +1,7 @@
 // Spiker.as
 
 #include "MechanismsCommon.as";
+#include "DummyCommon.as";
 #include "Hitters.as";
 
 class Spiker : Component
@@ -47,8 +48,8 @@ class Spiker : Component
 			{
 				CBlob@ blob = blobs[i];
 				if(!blob.hasTag("flesh")) continue;
-
-				spike.server_Hit(blob, blob.getPosition(), blob.getVelocity() * -1, 1.0f, Hitters::spikes, true);
+				f32 damage = (sv_gamemode == "BW") ? 2 : 1;
+				spike.server_Hit(blob, blob.getPosition(), blob.getVelocity() * -1, damage, Hitters::spikes, true);
 			}
 		}
 
@@ -89,6 +90,7 @@ void onInit(CBlob@ this)
 
 	// used by TileBackground.as
 	this.set_TileType("background tile", CMap::tile_wood_back);
+	this.set_TileType(Dummy::TILE, Dummy::OBSTRUCTOR); //fake tile collision
 }
 
 void onSetStatic(CBlob@ this, const bool isStatic)

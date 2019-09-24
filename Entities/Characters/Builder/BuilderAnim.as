@@ -16,6 +16,22 @@ void onInit(CSprite@ this)
 	addRunnerTextures(this, "builder", "Builder");
 
 	this.getCurrentScript().runFlags |= Script::tick_not_infire;
+
+	// axe slash layer
+    this.RemoveSpriteLayer("chop");
+    CSpriteLayer@ chop = this.addSpriteLayer("chop", "../soloSlash.png" , 32, 32, this.getBlob().getTeamNum(), this.getBlob().getSkinNum());
+
+
+    if (chop !is null)
+    {
+        Animation@ anim = chop.addAnimation("default", 0, true);
+        anim.AddFrame(0);
+        anim.AddFrame(1);
+        anim.AddFrame(2);
+        chop.SetVisible(false);
+        chop.SetRelativeZ(5.3f);
+        //chop.ScaleBy(Vec2f(2.0f,2.0f));
+    }
 }
 
 void onPlayerInfoChanged(CSprite@ this)
@@ -53,6 +69,12 @@ void onTick(CSprite@ this)
 	const bool action2 = blob.isKeyPressed(key_action2);
 	const bool action1 = blob.isKeyPressed(key_action1);
 
+	bool wantsChopLayer = false;
+    s32 chopframe = 1;
+    f32 chopAngle = 0.0f;
+    Vec2f vec;
+    int direction = blob.getAimDirection(vec);
+
 	if (!blob.hasTag(burning_tag)) //give way to burning anim
 	{
 		const bool left = blob.isKeyPressed(key_left);
@@ -66,6 +88,12 @@ void onTick(CSprite@ this)
 		if (!blob.get("moveVars", @moveVars))
 		{
 			return;
+		}
+		if (blob.hasTag("axehit") && blob.get_u8("tprop") < 4)
+		{
+			wantsChopLayer = true;
+            chopframe = blob.get_u8("tprop");
+            chopAngle = -vec.Angle(); 
 		}
 
 		if (knocked > 0)
@@ -83,7 +111,26 @@ void onTick(CSprite@ this)
 		{
 			this.SetAnimation("crouch");
 		}
-		else if (action2 || (this.isAnimation("strike") && !this.isAnimationEnded()))
+		
+		//hit animations
+		else if (blob.get_bool("swinging") && (blob.get_string("tool") == "axe"))
+		{
+			if(blob.get_u8("axetimer") >= 14)
+			{
+				this.SetAnimation("axerise2");
+			}
+			else
+			{
+				this.SetAnimation("axerise1");
+			}
+			
+			//printf("axe rise");
+		}
+		else if (blob.hasTag("axehit") || (this.isAnimation("axestrike") && !this.isAnimationEnded()))
+		{
+			this.SetAnimation("axestrike");
+		}
+		else if (action2 && (blob.get_string("tool") == "pickaxe")|| (this.isAnimation("strike") && !this.isAnimationEnded()))
 		{
 			this.SetAnimation("strike");
 		}
@@ -170,6 +217,31 @@ void onTick(CSprite@ this)
 		blob.Untag("attack head");
 		blob.Untag("dead head");
 	}
+
+	CSpriteLayer@ chop = this.getSpriteLayer("chop");
+
+    if (chop !is null)
+    {
+        chop.SetVisible(wantsChopLayer);
+        if (wantsChopLayer)
+        {
+            f32 choplength = 8.0f;
+
+            chop.animation.frame = chopframe;
+            Vec2f offset = Vec2f(choplength, 0.0f);
+            offset.RotateBy(chopAngle, Vec2f_zero);
+            if (!this.isFacingLeft())
+                offset.x *= -1.0f;
+            offset.y += this.getOffset().y * 0.5f;
+
+            chop.SetOffset(offset);
+            chop.ResetTransform();
+            if (this.isFacingLeft())
+                chop.RotateBy(180.0f + chopAngle, Vec2f());
+            else
+                chop.RotateBy(chopAngle, Vec2f());
+        }
+    }
 }
 
 void DrawCursorAt(Vec2f position, string& in filename)

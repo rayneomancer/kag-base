@@ -13,6 +13,7 @@ void PlaceBlob(CBlob@ this, CBlob @blob, Vec2f cursorPos)
 {
 	if (blob !is null)
 	{
+		if (this.isKeyPressed(key_action2) && (this.get_string("tool") == "axe")) return;
 		blob.Tag("temp blob placed");
 		// hack for spike kills
 		// TODO: add proper functionality for any block with a specific tag to blob.SetDamageOwnerPlayer(this.getPlayer());

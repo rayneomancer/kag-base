@@ -15,6 +15,10 @@ void LoadDefaultMapLoaders()
 	{
 		RegisterFileExtensionScript("Scripts/MapLoaders/LoadTDMPNG.as", "png");
 	}
+    else if (sv_gamemode == "BW")
+    {
+        RegisterFileExtensionScript("Scripts/MapLoaders/LoadBWPNG.as", "png");
+    }
 	else
 	{
 		RegisterFileExtensionScript("Scripts/MapLoaders/LoadPNGMap.as", "png");

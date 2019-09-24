@@ -106,6 +106,7 @@ void onTick(CBlob@ this)
 		{
 			if (bc.cursorClose && bc.buildable && bc.supported)
 			{
+				if (this.isKeyPressed(key_action2) && (this.get_string("tool") == "axe")) return;
 				CBitStream params;
 				params.write_u8(blockIndex);
 				params.write_Vec2f(bc.tileAimPos);
